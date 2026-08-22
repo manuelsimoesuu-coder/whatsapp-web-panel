@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const cors = require('cors');
@@ -10,7 +10,9 @@ app.use(cors());
 const PASSWORD_FACIL = "1234"; 
 
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        dataPath: './whatsapp-session'
+    }),
     puppeteer: {
         headless: true,
         args: [
@@ -37,12 +39,12 @@ client.on('ready', () => {
 
 client.initialize();
 
-// Ruta para enviar mensajes
+// Ruta para enviar mensajes de texto
 app.post('/send', async (req, res) => {
     const { pass, phone, message } = req.body;
 
     if (pass !== PASSWORD_FACIL) {
-        return res.status(401).json({ success: false, error: "Contraseña incorrecta" });
+        return res.status(401).json({ success: false, error: "Contraseña incorrecta" %> });
     }
 
     try {
@@ -55,7 +57,26 @@ app.post('/send', async (req, res) => {
     }
 });
 
-// NUEVA RUTA: Obtener todos los grupos
+// Ruta para enviar fotos con descripción
+app.post('/send-media', async (req, res) => {
+    const { pass, phone, message, mediaBase64, mimetype, filename } = req.body;
+
+    if (pass !== PASSWORD_FACIL) {
+        return res.status(401).json({ success: false, error: "Contraseña incorrecta" });
+    }
+
+    try {
+        let chatId = phone.includes('@c.us') || phone.includes('@g.us') ? phone : `${phone}@c.us`;
+        const media = new MessageMedia(mimetype, mediaBase64, filename);
+        await client.sendMessage(chatId, media, { caption: message });
+        res.json({ success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Ruta: Obtener todos los grupos
 app.get('/groups', async (req, res) => {
     const { pass } = req.query;
 
@@ -65,7 +86,6 @@ app.get('/groups', async (req, res) => {
 
     try {
         const chats = await client.getChats();
-        // Filtramos para obtener solo los grupos y extraemos su nombre e ID
         const groups = chats
             .filter(chat => chat.isGroup)
             .map(group => ({
