@@ -9,11 +9,12 @@ app.use(cors());
 
 const PASSWORD_FACIL = "1234"; 
 
-// Configuración adaptada para servidores en la nube (Railway/Render)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        // Forzamos el uso de Chromium del sistema y evitamos el sandbox
+        executablePath: process.env.CHROME_BIN || '/usr/bin/chromium-browser',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -21,6 +22,7 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
+            '--single-process',
             '--disable-gpu'
         ],
     }
