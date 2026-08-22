@@ -4,14 +4,17 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-app.use(express.json());
+
+// Aumentamos los límites para fotos pesadas
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
 const PASSWORD_FACIL = "1234"; 
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: './whatsapp-session'
+        dataPath: './whatsapp-session' // Esta es la carpeta que vinculamos al Volumen en Railway
     }),
     puppeteer: {
         headless: true,
@@ -39,7 +42,7 @@ client.on('ready', () => {
 
 client.initialize();
 
-// Ruta para enviar mensajes de texto
+// Ruta para enviar mensajes de texto con validación segura
 app.post('/send', async (req, res) => {
     const { pass, phone, message } = req.body;
 
@@ -48,16 +51,27 @@ app.post('/send', async (req, res) => {
     }
 
     try {
-        let chatId = phone.includes('@c.us') || phone.includes('@g.us') ? phone : `${phone}@c.us`;
-        await client.sendMessage(chatId, message);
+        // Limpiamos el número y preparamos el formato
+        let cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+        let chatId = cleanPhone.includes('@c.us') || cleanPhone.includes('@g.us') 
+            ? cleanPhone 
+            : `${cleanPhone}@c.us`;
+
+        // Validamos si el número existe en WhatsApp
+        const numberId = await client.getNumberId(chatId);
+        if (!numberId) {
+            return res.status(400).json({ success: false, error: "El número no está registrado en WhatsApp o no se ha sincronizado." });
+        }
+
+        await client.sendMessage(numberId._serialized, message);
         res.json({ success: true });
     } catch (error) {
-        console.error(error);
+        console.error("Error al enviar:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Ruta para enviar fotos con descripción
+// Ruta para enviar fotos
 app.post('/send-media', async (req, res) => {
     const { pass, phone, message, mediaBase64, mimetype, filename } = req.body;
 
@@ -66,12 +80,19 @@ app.post('/send-media', async (req, res) => {
     }
 
     try {
-        let chatId = phone.includes('@c.us') || phone.includes('@g.us') ? phone : `${phone}@c.us`;
+        let cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+        let chatId = cleanPhone.includes('@c.us') || cleanPhone.includes('@g.us') ? cleanPhone : `${cleanPhone}@c.us`;
+        
+        const numberId = await client.getNumberId(chatId);
+        if (!numberId) {
+            return res.status(400).json({ success: false, error: "Número no registrado en WhatsApp." });
+        }
+
         const media = new MessageMedia(mimetype, mediaBase64, filename);
-        await client.sendMessage(chatId, media, { caption: message });
+        await client.sendMessage(numberId._serialized, media, { caption: message });
         res.json({ success: true });
     } catch (error) {
-        console.error(error);
+        console.error("Error al enviar media:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
