@@ -9,12 +9,11 @@ app.use(cors());
 
 const PASSWORD_FACIL = "1234"; 
 
-// Configuración usando puppeteer-core y la ruta exacta de Chromium en el contenedor de Railway
+// Configuración limpia sin rutas forzadas de sistema
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
