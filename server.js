@@ -17,6 +17,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
+        protocolTimeout: 60000, // Aumentamos el tiempo de espera a 60 segundos para evitar el timeout
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -41,7 +42,7 @@ client.on('ready', () => {
 
 client.initialize();
 
-// Ruta para enviar mensajes de texto con validación
+// Ruta para enviar mensajes de texto con validación segura y tiempo extendido
 app.post('/send', async (req, res) => {
     const { pass, phone, message } = req.body;
 
@@ -103,7 +104,6 @@ app.get('/groups', async (req, res) => {
     }
 
     try {
-        // Intentamos obtener los chats hasta 3 veces si la sesión apenas va arrancando
         let chats = [];
         for (let intento = 1; intento <= 3; intento++) {
             try {
@@ -111,7 +111,7 @@ app.get('/groups', async (req, res) => {
                 if (chats && chats.length > 0) break;
             } catch (err) {
                 if (intento === 3) throw err;
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2 segundos antes de reintentar
+                await new Promise(resolve => setTimeout(resolve, 3000));
             }
         }
 
