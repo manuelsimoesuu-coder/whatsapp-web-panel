@@ -5,7 +5,6 @@ const cors = require('cors');
 
 const app = express();
 
-// Aumentamos los límites para fotos pesadas
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
@@ -14,7 +13,7 @@ const PASSWORD_FACIL = "1234";
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: './whatsapp-session' // Esta es la carpeta que vinculamos al Volumen en Railway
+        dataPath: './whatsapp-session'
     }),
     puppeteer: {
         headless: true,
@@ -42,7 +41,7 @@ client.on('ready', () => {
 
 client.initialize();
 
-// Ruta para enviar mensajes de texto con validación segura
+// Ruta para enviar mensajes de texto con validación
 app.post('/send', async (req, res) => {
     const { pass, phone, message } = req.body;
 
@@ -51,16 +50,14 @@ app.post('/send', async (req, res) => {
     }
 
     try {
-        // Limpiamos el número y preparamos el formato
         let cleanPhone = phone.trim().replace(/[^0-9]/g, '');
         let chatId = cleanPhone.includes('@c.us') || cleanPhone.includes('@g.us') 
             ? cleanPhone 
             : `${cleanPhone}@c.us`;
 
-        // Validamos si el número existe en WhatsApp
         const numberId = await client.getNumberId(chatId);
         if (!numberId) {
-            return res.status(400).json({ success: false, error: "El número no está registrado en WhatsApp o no se ha sincronizado." });
+            return res.status(400).json({ success: false, error: "El número no está registrado en WhatsApp." });
         }
 
         await client.sendMessage(numberId._serialized, message);
@@ -97,7 +94,7 @@ app.post('/send-media', async (req, res) => {
     }
 });
 
-// Ruta: Obtener todos los grupos
+// Ruta: Obtener todos los grupos con reintento seguro
 app.get('/groups', async (req, res) => {
     const { pass } = req.query;
 
@@ -106,8 +103,19 @@ app.get('/groups', async (req, res) => {
     }
 
     try {
-        const chats = await client.getChats();
-        const groups = chats
+        // Intentamos obtener los chats hasta 3 veces si la sesión apenas va arrancando
+        let chats = [];
+        for (let intento = 1; intento <= 3; intento++) {
+            try {
+                chats = await client.getChats();
+                if (chats && chats.length > 0) break;
+            } catch (err) {
+                if (intento === 3) throw err;
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2 segundos antes de reintentar
+            }
+        }
+
+        const groups = (chats || [])
             .filter(chat => chat.isGroup)
             .map(group => ({
                 name: group.name,
@@ -116,8 +124,8 @@ app.get('/groups', async (req, res) => {
         
         res.json({ success: true, total: groups.length, groups });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error("Error obteniendo grupos:", error);
+        res.status(500).json({ success: false, error: "WhatsApp se está sincronizando, intenta de nuevo en unos segundos." });
     }
 });
 
