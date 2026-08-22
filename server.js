@@ -7,14 +7,14 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Tu contraseña súper fácil
 const PASSWORD_FACIL = "1234"; 
 
-// Configuración limpia que utiliza el navegador interno de Puppeteer con los permisos necesarios para la nube
+// Configuración usando puppeteer-core y la ruta exacta de Chromium en el contenedor de Railway
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
