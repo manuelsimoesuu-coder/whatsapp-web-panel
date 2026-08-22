@@ -9,7 +9,6 @@ app.use(cors());
 
 const PASSWORD_FACIL = "1234"; 
 
-// Configuración limpia sin rutas forzadas de sistema
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -27,8 +26,9 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-    console.log('--- ESCANEA ESTE CÓDIGO QR EN LA CONSOLA DE RAILWAY ---');
+    console.log('--- ESCANEA ESTE CÓDIGO QR EN LA CONSOLA ---');
     qrcode.generate(qr, { small: true });
+    console.log('Si no puedes escanear el de arriba, copia este texto: ', qr);
 });
 
 client.on('ready', () => {
@@ -37,6 +37,7 @@ client.on('ready', () => {
 
 client.initialize();
 
+// Ruta para enviar mensajes
 app.post('/send', async (req, res) => {
     const { pass, phone, message } = req.body;
 
@@ -48,6 +49,31 @@ app.post('/send', async (req, res) => {
         let chatId = phone.includes('@c.us') || phone.includes('@g.us') ? phone : `${phone}@c.us`;
         await client.sendMessage(chatId, message);
         res.json({ success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// NUEVA RUTA: Obtener todos los grupos
+app.get('/groups', async (req, res) => {
+    const { pass } = req.query;
+
+    if (pass !== PASSWORD_FACIL) {
+        return res.status(401).json({ success: false, error: "Contraseña incorrecta" });
+    }
+
+    try {
+        const chats = await client.getChats();
+        // Filtramos para obtener solo los grupos y extraemos su nombre e ID
+        const groups = chats
+            .filter(chat => chat.isGroup)
+            .map(group => ({
+                name: group.name,
+                id: group.id._serialized
+            }));
+        
+        res.json({ success: true, total: groups.length, groups });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, error: error.message });
