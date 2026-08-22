@@ -7,9 +7,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Tu contraseña súper fácil
 const PASSWORD_FACIL = "1234"; 
 
-// Configuración limpia que usa el navegador que Puppeteer trae por defecto con los permisos de nube
+// Configuración limpia que utiliza el navegador interno de Puppeteer con los permisos necesarios para la nube
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
