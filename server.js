@@ -5,17 +5,29 @@ const cors = require('cors');
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // Permite que tu web en Netlify se comunique sin problemas con este servidor
+app.use(cors());
 
-// Tu contraseña súper fácil
 const PASSWORD_FACIL = "1234"; 
 
+// Configuración adaptada para servidores en la nube (Railway/Render)
 const client = new Client({
-    authStrategy: new LocalAuth()
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu'
+        ],
+    }
 });
 
 client.on('qr', (qr) => {
-    console.log('--- ESCANEA ESTE CÓDIGO QR EN LA CONSOLA DEL SERVIDOR ---');
+    console.log('--- ESCANEA ESTE CÓDIGO QR EN LA CONSOLA DE RAILWAY ---');
     qrcode.generate(qr, { small: true });
 });
 
@@ -42,7 +54,7 @@ app.post('/send', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
