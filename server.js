@@ -44,7 +44,7 @@ app.post('/send', async (req, res) => {
     const { pass, phone, message } = req.body;
 
     if (pass !== PASSWORD_FACIL) {
-        return res.status(401).json({ success: false, error: "Contraseña incorrecta" %> });
+        return res.status(401).json({ success: false, error: "Contraseña incorrecta" });
     }
 
     try {
